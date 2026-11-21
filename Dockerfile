@@ -20,17 +20,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code, configs, and pipeline parameters
+# Copy application source code, configs, and pre-trained model artifact
 COPY src/ /app/src/
 COPY configs/ /app/configs/
 COPY params.yaml /app/params.yaml
-
-# Train model at image build time so the artifact is baked in
-RUN python -m src.data.load_data --config params.yaml && \
-    python -m src.data.preprocess --config params.yaml && \
-    python -m src.models.train --config params.yaml
-
-# Copy models directory (if pre-existing)
 COPY models/ /app/models/
 
 # Set permissions for non-root user
