@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, HTTPException, status
@@ -27,6 +28,17 @@ async def lifespan(app: FastAPI):
     model_path = os.getenv("MODEL_PATH", "models/random_forest_model.joblib")
     if predictor is None:
         try:
+            # If model artifact does not exist (e.g. fresh container without DVC pull), auto-train it
+            if not Path(model_path).is_file():
+                logger.info(f"Model file not found at {model_path}. Auto-training model for container startup...")
+                from src.data.load_data import load_raw_data
+                from src.data.preprocess import preprocess_data
+                from src.models.train import train_model
+
+                load_raw_data()
+                preprocess_data()
+                train_model(model_output_path=model_path, tracking_uri="sqlite:///mlflow.db")
+
             predictor = IrisPredictor(model_path=model_path)
             logger.info("Random Forest Model loaded successfully into memory.")
         except Exception as exc:
@@ -146,4 +158,5 @@ async def predict_batch(batch: BatchIrisInput):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("src.api.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("src.api.main:app", host="0.0.0.0", port=port, reload=False)

@@ -3,7 +3,8 @@ FROM python:3.11-slim
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    MLFLOW_ALLOW_FILE_STORE=true
 
 # Install curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -19,11 +20,18 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code and trained model
+# Copy application source code, configs, and pipeline parameters
 COPY src/ /app/src/
 COPY configs/ /app/configs/
-COPY models/ /app/models/
 COPY params.yaml /app/params.yaml
+
+# Train model at image build time so the artifact is baked in
+RUN python -m src.data.load_data --config params.yaml && \
+    python -m src.data.preprocess --config params.yaml && \
+    python -m src.models.train --config params.yaml
+
+# Copy models directory (if pre-existing)
+COPY models/ /app/models/
 
 # Set permissions for non-root user
 RUN chown -R appuser:appuser /app
