@@ -2,8 +2,9 @@ import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 
 from src.api.schemas import (
     BatchIrisInput,
@@ -19,6 +20,9 @@ from src.utils.logger import get_logger
 logger = get_logger("fastapi_app")
 
 predictor: Optional[IrisPredictor] = None
+
+TEMPLATES_DIR = Path(__file__).parent / "templates"
+DASHBOARD_FILE = TEMPLATES_DIR / "dashboard.html"
 
 
 @asynccontextmanager
@@ -69,14 +73,32 @@ app.add_middleware(
 
 
 @app.get("/", tags=["General"])
-async def root():
-    """Welcome endpoint with API details."""
+async def root(request: Request):
+    """Serves the interactive web dashboard for browser clients, or JSON metadata for API clients."""
+    accept = request.headers.get("accept", "")
+    # If opened in a web browser, serve the interactive UI
+    if "text/html" in accept:
+        if DASHBOARD_FILE.is_file():
+            with open(DASHBOARD_FILE, "r", encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+
+    # Otherwise return API metadata
     return {
         "message": "Welcome to Iris Flower Classification MLOps Service",
         "documentation": "/docs",
+        "dashboard": "/dashboard",
         "version": "0.1.0",
         "algorithm": "Random Forest Classifier",
     }
+
+
+@app.get("/dashboard", response_class=HTMLResponse, tags=["Dashboard"])
+async def dashboard():
+    """Direct URL to the interactive web dashboard."""
+    if DASHBOARD_FILE.is_file():
+        with open(DASHBOARD_FILE, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h1>Iris Flower Classification Dashboard</h1><p>Visit <a href='/docs'>/docs</a> for Swagger documentation.</p>")
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
