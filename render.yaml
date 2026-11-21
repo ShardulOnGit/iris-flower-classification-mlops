@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: iris-flower-classification-mlops
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: MODEL_PATH
+        value: models/random_forest_model.joblib

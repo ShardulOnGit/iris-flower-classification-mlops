@@ -1,0 +1,51 @@
+stages:
+  load_data:
+    cmd: python -m src.data.load_data --config params.yaml
+    deps:
+      - src/data/load_data.py
+      - params.yaml
+    outs:
+      - data/raw/iris.csv
+
+  preprocess:
+    cmd: python -m src.data.preprocess --config params.yaml
+    deps:
+      - data/raw/iris.csv
+      - src/data/preprocess.py
+      - params.yaml
+    params:
+      - preprocess.test_size
+      - preprocess.stratify
+      - base.random_state
+    outs:
+      - data/processed/train.csv
+      - data/processed/test.csv
+
+  train:
+    cmd: python -m src.models.train --config params.yaml
+    deps:
+      - data/processed/train.csv
+      - src/models/train.py
+      - params.yaml
+    params:
+      - train.n_estimators
+      - train.max_depth
+      - train.min_samples_split
+      - train.criterion
+      - train.random_state
+    outs:
+      - models/random_forest_model.joblib
+
+  evaluate:
+    cmd: python -m src.models.evaluate --config params.yaml
+    deps:
+      - data/processed/test.csv
+      - models/random_forest_model.joblib
+      - src/models/evaluate.py
+      - params.yaml
+    metrics:
+      - metrics/scores.json:
+          cache: false
+    plots:
+      - metrics/confusion_matrix.png:
+          cache: false

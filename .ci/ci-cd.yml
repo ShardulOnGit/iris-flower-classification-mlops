@@ -1,0 +1,60 @@
+name: Iris MLOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Pytest test suite
+        run: |
+          pytest -v --tb=short
+
+      - name: Verify DVC pipeline reproducibility
+        run: |
+          dvc repro --dry
+
+  docker-build:
+    needs: test-and-validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: iris-mlops-api:latest
+
+      - name: Test Docker container startup and healthcheck
+        run: |
+          docker run -d --name test-api -p 8000:8000 iris-mlops-api:latest
+          sleep 5
+          curl -f http://localhost:8000/health || (docker logs test-api && exit 1)
+          docker stop test-api && docker rm test-api

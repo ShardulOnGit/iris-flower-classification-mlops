@@ -1,0 +1,102 @@
+schema: '2.0'
+stages:
+  load_data:
+    cmd: python -m src.data.load_data --config params.yaml
+    deps:
+    - path: params.yaml
+      hash: md5
+      md5: 45f4effa00451500fbcb39dfd0ebe556
+      size: 748
+    - path: src/data/load_data.py
+      hash: md5
+      md5: 39c8f7c04e97e66c546cfa59fcf08e63
+      size: 1976
+    outs:
+    - path: data/raw/iris.csv
+      hash: md5
+      md5: 7994bf7b0676c6ea843a5af21c5c591e
+      size: 4316
+  preprocess:
+    cmd: python -m src.data.preprocess --config params.yaml
+    deps:
+    - path: data/raw/iris.csv
+      hash: md5
+      md5: 7994bf7b0676c6ea843a5af21c5c591e
+      size: 4316
+    - path: params.yaml
+      hash: md5
+      md5: 45f4effa00451500fbcb39dfd0ebe556
+      size: 748
+    - path: src/data/preprocess.py
+      hash: md5
+      md5: 9d857fb10f050490fabe313e4d4573aa
+      size: 3846
+    params:
+      params.yaml:
+        base.random_state: 42
+        preprocess.stratify: true
+        preprocess.test_size: 0.2
+    outs:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 334c27e8d5f986038c30640dc853f625
+      size: 916
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 9b30ff68b39409b2ecbe58cf01ae3e33
+      size: 3466
+  train:
+    cmd: python -m src.models.train --config params.yaml
+    deps:
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 9b30ff68b39409b2ecbe58cf01ae3e33
+      size: 3466
+    - path: params.yaml
+      hash: md5
+      md5: 45f4effa00451500fbcb39dfd0ebe556
+      size: 748
+    - path: src/models/train.py
+      hash: md5
+      md5: a99b9dc670a7bbe87231b484359ef3b9
+      size: 5634
+    params:
+      params.yaml:
+        train.criterion: gini
+        train.max_depth: 4
+        train.min_samples_split: 2
+        train.n_estimators: 100
+        train.random_state: 42
+    outs:
+    - path: models/random_forest_model.joblib
+      hash: md5
+      md5: f6519a39b5bc8b06d2fab67c7c471a8a
+      size: 150081
+  evaluate:
+    cmd: python -m src.models.evaluate --config params.yaml
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 334c27e8d5f986038c30640dc853f625
+      size: 916
+    - path: models/random_forest_model.joblib
+      hash: md5
+      md5: f6519a39b5bc8b06d2fab67c7c471a8a
+      size: 150081
+    - path: params.yaml
+      hash: md5
+      md5: 45f4effa00451500fbcb39dfd0ebe556
+      size: 748
+    - path: src/models/evaluate.py
+      hash: md5
+      md5: bfc5712c381e2294b8a542a82e04bcc9
+      size: 5431
+    outs:
+    - path: metrics/confusion_matrix.png
+      hash: md5
+      md5: e3cb13e7264d7642fea862af39d03f3d
+      size: 46918
+    - path: metrics/scores.json
+      hash: md5
+      md5: de427d4fed1e5241d660799242e09f07
+      size: 1157
